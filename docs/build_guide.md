@@ -59,23 +59,16 @@ LDFLAGS="-L$HOME/intel-netcdf/lib" \
 
 This approach uses the provided environment setup script:
 
+```bash
 # Source the environment setup script
 source scripts/fix_compiler_flags.sh
 
-## PETSc Installation
-
-Delft3D-FM requires PETSc for parallel solvers. For installation instructions, see:
-https://petsc.org/release/install/
-
-Our configuration assumes PETSc is installed in `/usr/local/petsc`.
-
-
-# Run configure
+# Run configure with simpler parameters since environment is pre-configured
 ./configure --prefix=$(pwd) --with-netcdf=$HOME/intel-netcdf \
   --with-mpi --with-metis=/usr --with-petsc=/usr/local/petsc \
   --with-blas-lib=-lblas --with-lapack-lib=-llapack
+```
 
-The fix_compiler_flags.sh script sets all necessary compiler flags and environment variables, making the configuration process cleaner and more maintainable.
 
 
 ## Build Process
@@ -107,10 +100,69 @@ After the build completes successfully:
    ls -la bin/
 
 
-
 ## Compiler Notes
 
 Although we configure with Intel Fortran compilers, many Makefiles contain hardcoded Intel flags that need conversion when using GNU compilers for certain components. The conversion table is included in `fix_compiler_flags.sh`.
+
+## Compiler Consistency Requirements
+
+### Critical: Maintain Consistent Compiler Usage
+
+For a successful build, the same Fortran compiler must be used consistently throughout the build process:
+
+- If using Intel Fortran for the main components, all Fortran code must be compiled with Intel Fortran
+- If using GNU Fortran, all Fortran code must be compiled with GNU Fortran
+- **Mixing compilers will cause build failures with cryptic error messages**
+
+### Common Compiler Mixing Errors
+
+1. **Module incompatibility errors**:
+
+f951: Fatal Error: Reading module '...' at line 1 column 2: Unexpected EOF
+
+
+This indicates a Fortran module file compiled with one compiler being used with another.
+
+2. **Linker symbol errors**:
+
+undefined reference to _gfortran_st_write'    multiple definition of main'
+
+This indicates object files compiled with GNU Fortran being linked with Intel Fortran runtime (or vice versa).
+
+### Checking Compiler Configuration
+
+Verify your MPI wrappers are using the correct compilers:
+
+```bash
+# Check which compiler mpif77 is using
+mpif77 -show
+
+# Check which compiler mpiifort is using
+mpiifort -show
+```
+
+
+### Fixing Compiler Consistency
+
+1. Configure Intel MPI to use Intel Fortran consistently:
+
+```bash
+source /opt/intel/oneapi/setvars.sh
+export I_MPI_F77=ifort
+export I_MPI_F90=ifort
+```
+
+2. Clean the problematic components:
+```bash
+make -C path/to/problem/component clean
+```
+
+3. For persistent issues, a complete rebuild may be necessary:
+```bash
+make distclean
+# Then reconfigure with consistent settings
+```
+
 
 ## Troubleshooting
 
