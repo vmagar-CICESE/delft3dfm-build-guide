@@ -1,32 +1,26 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
+# Build artifacts
 *.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
 *.a
-*.lib
-
-# Executables
+*.so
+*.mod
 *.exe
-*.out
-*.app
+*.dll
+*.dylib
+
+# Editor files
+*~
+*.swp
+.vscode/
+.idea/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Build directories
+/build/
+/bin/
+/obj/
+
+# Log files
+*.log
