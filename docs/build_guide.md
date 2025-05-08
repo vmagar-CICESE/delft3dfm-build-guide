@@ -163,6 +163,29 @@ make distclean
 # Then reconfigure with consistent settings
 ```
 
+### External Library Dependencies - FLAP
+
+The dfmoutput component requires the FLAP (Fortran command Line Arguments Parser) library:
+
+```bash
+# Build FLAP with FoBiS.py (install if needed: pip install FoBiS.py)
+cd /path/to/src/third_party_open/FLAP
+FoBiS.py build -mode static-intel
+
+# The modules are created in static/mod/ directory
+ls -la static/mod/
+# Should show data_type_command_line_interface.mod and ir_precision.mod
+
+# When building dfmoutput, add this include path:
+export FCFLAGS="$FCFLAGS -I/path/to/src/third_party_open/FLAP/static/mod"
+make -C tools_gpl/dfmoutput clean
+make -C tools_gpl/dfmoutput
+```
+If you get errors like:
+
+error #7002: Error in opening the compiled module file. Check INCLUDE paths. [IR_PRECISION]
+
+This indicates the FLAP modules can't be found during compilation.
 
 ## Troubleshooting
 
