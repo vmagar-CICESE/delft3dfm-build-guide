@@ -90,6 +90,41 @@ When encountering compiler flag issues:
 
 The build will resume from where it left off without rebuilding already completed components.
 
+### NetCDF Library Linking Issues in WAQ component
+When building the WAQ components, you may see errors like:
+```bash
+undefined reference to `netcdf_mp_nf90_inquire_attribute_'
+```
+
+This indicates the NetCDF Fortran library isn't being linked properly. Fix by adding explicit NetCDF libraries to LDFLAGS: 
+```bash
+LDFLAGS="-L/root/intel-netcdf/lib -lnetcdff -lnetcdf"
+```
+The -lnetcdff flag is critical for linking Fortran NetCDF interfaces.
+
+We can clean and rebuild the WAQ component:
+```bash
+make -C engines_gpl/waq clean
+make -C engines_gpl/waq
+```
+
+Or clean and rebuild with the explicit NetCDF library flags:
+
+```bash
+# Clean the WAQ component
+make -C engines_gpl/waq clean
+
+# Rebuild with explicit NetCDF library flags
+FC=mpiifort F77=mpiifort MPIFC=mpiifort CC=gcc CXX=g++ MPICXX=mpicxx \
+PETSc_CFLAGS="-I/usr/local/petsc/include" \
+PETSc_LIBS="-L/usr/local/petsc/lib -lpetsc" \
+PETSC_DIR=/usr/local/petsc \
+FCFLAGS="-fPIC -O1 -qopenmp -I/root/intel-netcdf/include" \
+FFLAGS="-fPIC -O1 -qopenmp -I/root/intel-netcdf/include" \
+F90FLAGS="-fPIC -O1 -qopenmp -I/root/intel-netcdf/include" \
+LDFLAGS="-L/root/intel-netcdf/lib -lnetcdff -lnetcdf" \
+make ds-install
+```
 
 ## Verifying Successful Build
 
@@ -99,6 +134,19 @@ After the build completes successfully:
    ```bash
    ls -la bin/
 
+### Environment Consistency
+
+When building specific components separately, you must maintain the same environment variables that were used during configure:
+
+```bash
+# When building dflowfm separately
+FC=mpiifort F77=mpiifort MPIFC=mpiifort \
+FCFLAGS="-fPIC -O1 -qopenmp -I$HOME/intel-netcdf/include" \
+FFLAGS="-fPIC -O1 -qopenmp -I$HOME/intel-netcdf/include" \
+F90FLAGS="-fPIC -O1 -qopenmp -I$HOME/intel-netcdf/include" \
+LDFLAGS="-L$HOME/intel-netcdf/lib" \
+make ds-install -C engines_gpl/dflowfm
+```
 
 ## Compiler Notes
 
@@ -186,6 +234,73 @@ If you get errors like:
 error #7002: Error in opening the compiled module file. Check INCLUDE paths. [IR_PRECISION]
 
 This indicates the FLAP modules can't be found during compilation.
+
+
+The build system expects FLAP modules in `third_party_open/FLAP/Test_Driver/mod` but the FoBiS.py build puts them in `third_party_open/FLAP/static/mod`.
+
+To resolve this, either:
+1. Create symbolic links:
+   ```bash
+   cd /path/to/src/third_party_open/FLAP
+   mkdir -p Test_Driver/mod
+   ln -sf $(pwd)/static/mod/ir_precision.mod Test_Driver/mod/
+   ln -sf $(pwd)/static/mod/data_type_command_line_interface.mod Test_Driver/mod/
+  ```
+1. Or explicitly specify the path:
+```bash
+FCFLAGS="-I/path/to/src/third_party_open/FLAP/static/mod $FCFLAGS" make -C tools_gpl/dfmoutput
+```
+
+
+The symlink approach is often cleaner as it allows the build system to continue working with its expected paths.
+
+### FLAP Interface Compatibility Issues
+
+When building with Intel Fortran, dfmoutput may fail with:
+```bash
+error #6627: This is an actual argument keyword name, and not a dummy argument name. [VALNAME]
+```
+This occurs due to incompatibility between the FLAP API and Intel Fortran.
+
+This occurs due to incompatibility between the FLAP API and Intel Fortran.
+
+#### Using make -k to Continue Despite Errors
+
+If symlinks and other approaches don't work, you can use:
+```bash
+make -k ds-install
+```
+
+This continues the build despite errors, which will skip dfmoutput while building everything else.
+
+The resulting build will be functional for simulations, but will lack dfmoutput utilities for post-processing.
+
+
+####  What's Missing Without dfmoutput
+The dfmoutput component provides these utilities:
+
+mapmerge: Combines map output files
+
+extract: Extracts subsets of data from output files
+
+convert: Converts between file formats
+
+These functions can be performed with external tools like Python scripts using the netCDF4 library.
+
+
+# Testing Your Build
+
+To verify your build is fully functional:
+
+```bash
+# Set up the runtime library path
+export LD_LIBRARY_PATH=/mnt/c/Users/vanes/Documents/DelftFM/delft3dfm-9180/src/lib:$LD_LIBRARY_PATH
+
+# Run a simple test
+cd /mnt/c/Users/vanes/Documents/DelftFM/delft3dfm-9180/src
+bin/d_hydro --version
+bin/dimr --version
+```
 
 ## Troubleshooting
 
